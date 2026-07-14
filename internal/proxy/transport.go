@@ -59,6 +59,22 @@ func NewRetryableTransport(baseTransport http.RoundTripper) *RetryableTransport 
 func (rt *RetryableTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	ctx := req.Context()
 
+	// Rewrite HTTPS///
+	if strings.Contains(req.URL.Path, "HTTPS///") {
+		httpsURL, err := url.Parse(strings.Replace(req.URL.Path, "/HTTPS///", "https://", 1))
+		if err != nil {
+			return nil, err
+		}
+		httpsReq, err := http.NewRequestWithContext(ctx, req.Method, httpsURL.String(), nil)
+		if err != nil {
+			return nil, err
+		}
+		httpsReq.Header = req.Header.Clone()
+		httpsReq.Header.Set("Host", httpsReq.Host)
+		httpsReq.Header.Set("Rewrite-HTTPS", "true")
+		req = httpsReq
+	}
+
 	// Add http://
 	if req.URL.Scheme == "" {
 		httpURL, err := url.Parse("http://" + strings.Replace(req.URL.Path, "/", "", 1))
